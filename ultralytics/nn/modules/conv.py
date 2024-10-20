@@ -33,6 +33,52 @@ def autopad(k, p=None, d=1):  # kernel, padding, dilation
     return p
 
 
+class DSConv(nn.Module):
+    """
+    Depthwise Separable Convolution.
+    
+    This module replaces traditional convolution by using a depthwise convolution followed by a pointwise convolution.
+    """
+
+    def __init__(self, c1, c2, k=3, s=1, p=None, d=1, act=True):
+        """
+        Initialize Depthwise Separable Convolution.
+        - c1: Input channels
+        - c2: Output channels
+        - k: Kernel size
+        - s: Stride
+        - p: Padding (automatically calculated if None)
+        - d: Dilation
+        - act: Activation function (default is nn.SiLU())
+        """
+        super().__init__()
+        self.depthwise = nn.Conv2d(c1, c1, kernel_size=k, stride=s, padding=autopad(k, p, d),
+                                   groups=c1, dilation=d, bias=False)
+        self.pointwise = nn.Conv2d(c1, c2, kernel_size=1, stride=1, bias=False)
+        self.bn = nn.BatchNorm2d(c2)
+        self.act = nn.SiLU() if act is True else act if isinstance(act, nn.Module) else nn.Identity()
+
+    def forward(self, x):
+        """
+        Forward pass applying depthwise convolution, pointwise convolution, batch normalization, and activation.
+        """
+        x = self.depthwise(x)
+        x = self.pointwise(x)
+        return self.act(self.bn(x))
+
+class DSConvModule(nn.Module):
+    """Depthwise Separable Convolution Module."""
+
+    def __init__(self, c1, c2, k=3, s=1, p=None, g=1, d=1, act=True):
+        """Initialize with Depthwise Separable Convolution instead of standard convolution."""
+        super().__init__()
+        self.conv = DSConv(c1, c2, k, s, p, d, act)
+
+    def forward(self, x):
+        """Apply depthwise separable convolution."""
+        return self.conv(x)
+
+
 class Conv(nn.Module):
     """Standard convolution with args(ch_in, ch_out, kernel, stride, padding, groups, dilation, activation)."""
 
